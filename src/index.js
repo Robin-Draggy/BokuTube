@@ -5,8 +5,27 @@ dotenv.config({
     path: './env'
 })
  
+// An async function always returns a promise. so after connectDB .then and .catch is added.
+connectDB()
+.then(() => {
+    app.listen(process.env.PORT || 8000, () => {
+        console.log(`server running on port: ${process.env.PORT}`);
+        
+    })
+})
+.catch((err) => {
+    console.log("MongoDB connection lost !!!", err);
+    
+})
 
-connectDB();
+
+
+
+
+
+
+
+
 
 
 
