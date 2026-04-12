@@ -3,7 +3,7 @@ import connectDB from "./db/db.js";
 import app from './app.js';
 
 dotenv.config({
-    path: './env'
+    path: './.env'
 })
  
 // An async function always returns a promise. so after connectDB .then and .catch is added.

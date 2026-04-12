@@ -36,7 +36,7 @@ export const registerUser = asyncHandler(async (req, res) => {
 
     // CHECKING IF USER ALREADY EXIST OR NOT
 
-    const existedUser = User.findOne({
+    const existedUser = await User.findOne({
         $or: [{username}, {email}]
     })
     console.log("existing user", existedUser)
@@ -46,7 +46,12 @@ export const registerUser = asyncHandler(async (req, res) => {
 
     // the file is still on the server it's not yet sent on cloudinary that is why it is localpath
     const avatarLocalPath = req.files?.avatar[0]?.path;
-    const coverImageLocalPath  = req.files?.coverImage[0]?.path;
+    // const coverImageLocalPath  = req.files?.coverImage[0]?.path;
+
+    let coverImageLocalPath;
+    if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
+        coverImageLocalPath = req.files.coverImage[0].path;
+    }
 
     if(!avatarLocalPath){
         throw new ApiError(400, "Avatar is required")
