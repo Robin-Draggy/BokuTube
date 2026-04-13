@@ -16,7 +16,7 @@ const userSchema = new Schema(
             type: String,
             required: true,
             unique: true,
-            lowecase: true,
+            lowercase: true,  // FIXED: was "lowecase" - this was a typo!
             trim: true, 
         },
         fullname: {
@@ -56,38 +56,57 @@ userSchema.pre("save", async function (next) {
     if(!this.isModified("password")) return next();
 
     this.password = await bcrypt.hash(this.password, 10)
-    
+    next()
 })
 
 userSchema.methods.isPasswordCorrect = async function(password){
     return await bcrypt.compare(password, this.password)
 }
 
+// FIXED: Added error handling and logging
 userSchema.methods.generateAccessToken = function(){
-    return jwt.sign(
-        {
+    try {
+        
+        const payload = {
             _id: this._id,
             email: this.email,
             username: this.username,
-            fullName: this.fullName
-        },
-        process.env.ACCESS_TOKEN_SECRET,
-        {
-            expiresIn: process.env.ACCESS_TOKEN_EXPIRY
-        }
-    )
+            fullname: this.fullname
+        };
+        
+        const token = jwt.sign(
+            payload,
+            process.env.ACCESS_TOKEN_SECRET,
+            {
+                expiresIn: process.env.ACCESS_TOKEN_EXPIRY
+            }
+        );
+        
+        return token;
+    } catch (error) {
+        console.error("Error generating access token:", error.message);
+        throw error;
+    }
 }
+
 userSchema.methods.generateRefreshToken = function(){
-    return jwt.sign(
-        {
-            _id: this._id,
-            
-        },
-        process.env.REFRESH_TOKEN_SECRET,
-        {
-            expiresIn: process.env.REFRESH_TOKEN_EXPIRY
-        }
-    )
+    try {
+       
+        const token = jwt.sign(
+            {
+                _id: this._id,
+            },
+            process.env.REFRESH_TOKEN_SECRET,
+            {
+                expiresIn: process.env.REFRESH_TOKEN_EXPIRY
+            }
+        );
+        
+        return token;
+    } catch (error) {
+        console.error("Error generating refresh token:", error.message);
+        throw error;
+    }
 }
 
 export const User = mongoose.model("User", userSchema)
