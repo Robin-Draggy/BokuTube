@@ -211,7 +211,6 @@ export const logoutUser = asyncHandler(async (req, res) => {
     )
 })
 
-
 export const refreshAccessToken = asyncHandler( async (req, res) => {
     const incommingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
@@ -253,4 +252,147 @@ export const refreshAccessToken = asyncHandler( async (req, res) => {
     } catch (error) {
         throw new ApiError(401, "Invalid refresh token")
     }
+})
+
+export const changeCurrentPassword = asyncHandler( async (req, res) => {
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+
+    // OPTIONAL(if there is confirm password)
+    // checking if new and confirm password is same or not
+    if(!(newPassword === confirmPassword)){
+        throw new ApiError(400, "New and confirm password did not match!")
+    }
+
+    // Getting the user
+    const user = await User.findById(req.user?._id);
+    // Checking the new password if it is okay or not from model user method isPasswordCorrect
+    const isPasswordCorrect = await user.isPasswordCorrect(newPassword);
+
+    if(!isPasswordCorrect){
+        throw new ApiError(400, "Password not valid")
+    }
+    // if the password is correct then setting the new password to the user
+    user.password = newPassword;
+    // saving the user on database
+    await user.save({ validateBeforeSave : false })
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, {}, "Password changed successfully!")
+    )
+})
+
+export const getCurrentUser = asyncHandler( async (req, res) => {
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            req.user,
+            "Current user fetched successfully!"
+        )
+    )
+})
+
+export const updateAccount = asyncHandler( async (req, res) => {
+    // getting the fields which can be updated
+    const { fullname, email } = req.body;
+
+    if(!fullname || !email){
+        throw new ApiError(400, "All fields are required.")
+    }
+
+    // updating the fields using mongodb update method
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                fullname : fullname,
+                // this is es6 syntax (if two are same then only one should be enough)
+                email
+            }
+        },
+        {
+            new: true
+        }
+    ).select("-password")
+
+    return res
+    .status(201)
+    .json(
+        new ApiResponse(
+            201,
+            user,
+            "Account updated successfully!"
+        )
+    )
+})
+
+export const updateAvatar = asyncHandler( async (req, res) => {
+    const avatarLocalPath = req.file?.path;
+
+    if(!avatarLocalPath){
+        throw new ApiError(400, "Avatar local file path not found.")
+    }
+
+    const avatar = await uploadOnCloudinary(avatarLocalPath)
+
+    if(!avatar){
+        throw new ApiError(400, "Error while uploading avatar on cloudinary")
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                avatar: avatar.url
+            }
+        },
+        {new: true}
+    ).select("-Password")
+
+    return res
+    .status(201)
+    .json(
+        new ApiResponse(
+            201,
+            user,
+            "Avatar updated successfully!"
+        )
+    )
+})
+
+export const updateCoverImage = asyncHandler( async (req, res) => {
+    const coverImageLocalPath = req.file?.path;
+
+    if(!coverImageLocalPath){
+        throw new ApiError(400, "Cover image local file path not found.")
+    }
+
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+
+    if(!coverImage){
+        throw new ApiError(400, "Error while uploading cover image on cloudinary.")
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                coverImage: coverImage.url
+            }
+        },
+        {new: true}
+    ).select("-password")
+
+    return res
+    .status(201)
+    .json(
+        new ApiResponse(
+            201,
+            user,
+            "Cover Image updated successfully!"
+        )
+    )
 })
