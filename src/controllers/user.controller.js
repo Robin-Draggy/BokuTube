@@ -264,13 +264,17 @@ export const changeCurrentPassword = asyncHandler(async (req, res) => {
     throw new ApiError(400, "New and confirm password did not match!");
   }
 
+  if (oldPassword === newPassword) {
+  throw new ApiError(400, "New password must be different from old password");
+}
+
   // Getting the user
   const user = await User.findById(req.user?._id);
   // Checking the new password if it is okay or not from model user method isPasswordCorrect
-  const isPasswordCorrect = await user.isPasswordCorrect(newPassword);
+  const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
 
   if (!isPasswordCorrect) {
-    throw new ApiError(400, "Password not valid");
+    throw new ApiError(400, "Old Password did not match");
   }
   // if the password is correct then setting the new password to the user
   user.password = newPassword;
@@ -316,89 +320,38 @@ export const updateAccount = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, user, "Account updated successfully!"));
 });
 
-export const updateAvatar = asyncHandler(async (req, res) => {
-  // 1. Check if user exists first
-  if (!req.user?._id) {
-    throw new ApiError(401, "Unauthorized: User not found");
-  }
+export const updateAvatar = asyncHandler(async(req, res) => {
+    const avatarLocalPath = req.file?.path
 
-  // 2. Check if file exists
-  if (!req.file || !req.file.path) {
-    throw new ApiError(400, "No avatar file provided");
-  }
+    if (!avatarLocalPath) {
+        throw new ApiError(400, "Avatar file is missing")
+    }
 
-  const avatarLocalPath = req.file.path;
+    //TODO: delete old image - assignment
 
-  // 3. Validate file type and size (security)
-  const allowedMimeTypes = [
-    "image/jpeg",
-    "image/png",
-    "image/jpg",
-    "image/webp",
-  ];
-  const maxFileSize = 5 * 1024 * 1024; // 5MB
+    const avatar = await uploadOnCloudinary(avatarLocalPath)
 
-  if (!allowedMimeTypes.includes(req.file.mimetype)) {
-    // Clean up the uploaded file
-    fs.unlinkSync(avatarLocalPath);
-    throw new ApiError(
-      400,
-      "Invalid file type. Only JPEG, PNG, JPG, and WEBP are allowed"
-    );
-  }
+    if (!avatar.url) {
+        throw new ApiError(400, "Error while uploading on avatar")
+        
+    }
 
-  if (req.file.size > maxFileSize) {
-    fs.unlinkSync(avatarLocalPath);
-    throw new ApiError(400, "File too large. Maximum size is 5MB");
-  }
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set:{
+                avatar: avatar.url
+            }
+        },
+        {new: true}
+    ).select("-password")
 
-  // 4. Get current user before updating (to delete old avatar from Cloudinary)
-  const currentUser = await User.findById(req.user._id);
-  if (!currentUser) {
-    fs.unlinkSync(avatarLocalPath);
-    throw new ApiError(404, "User not found");
-  }
-
-  // 5. Upload to Cloudinary with optimization options
-  const avatar = await uploadOnCloudinary(avatarLocalPath, {
-    folder: "avatars",
-    transformation: [
-      { width: 500, height: 500, crop: "fill", gravity: "face" },
-      { quality: "auto" },
-      { fetch_format: "auto" },
-    ],
-  });
-
-  if (!avatar || !avatar.url) {
-    fs.unlinkSync(avatarLocalPath);
-    throw new ApiError(500, "Error while uploading avatar to Cloudinary");
-  }
-
-  // 6. Delete old avatar from Cloudinary (to save storage costs)
-  if (currentUser.avatar && currentUser.avatar.includes("cloudinary")) {
-    const publicId = currentUser.avatar.split("/").pop().split(".")[0];
-    await cloudinary.uploader.destroy(`avatars/${publicId}`);
-  }
-
-  // 7. Update user with new avatar
-  const user = await User.findByIdAndUpdate(
-    req.user._id,
-    {
-      $set: {
-        avatar: avatar.url,
-      },
-    },
-    { new: true, runValidators: true }
-  ).select("-password -refreshToken"); // Fixed: "-Password" to "-password"
-
-  // 8. Clean up local file regardless of success/failure
-  fs.unlinkSync(avatarLocalPath);
-
-  // 9. Return response with full user object
-  return res
+    return res
     .status(200)
-    .json(new ApiResponse(200, user, "Avatar updated successfully"));
-});
+    .json(
+        new ApiResponse(200, user, "Avatar image updated successfully")
+    )
+})
 
 export const updateCoverImage = asyncHandler(async (req, res) => {
   const coverImageLocalPath = req.file?.path;
@@ -435,7 +388,7 @@ export const getUserChannelProfile = asyncHandler(async (req, res) => {
     throw new ApiError(400, "username not found!");
   }
 
-  const channel = User.aggregate([
+  const channel = await User.aggregate([
     {
       $match: {
         username: username?.toLowerCase(),
@@ -488,8 +441,6 @@ export const getUserChannelProfile = asyncHandler(async (req, res) => {
       },
     },
   ]);
-
-  console.log("channel", channel);
 
   if (!channel?.length) {
     throw new ApiError(400, "Channel does not exist.");
