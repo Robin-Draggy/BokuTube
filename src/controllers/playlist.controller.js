@@ -71,7 +71,15 @@ export const getPlaylistById = asyncHandler(async (req, red) => {
     .populate("owner", "username avatar")
 
     if(!playlist){
-        throw new ApiError(400, "Playlist not found")
+        throw new ApiError(404, "Playlist not found")
+    }
+
+    // privacy enforcement
+    if (
+        playlist.privacy === "private" &&
+        playlist.owner._id.toString() !== req.user?._id?.toString()
+    ) {
+        throw new ApiError(403, "Private playlist");
     }
 
     return res
@@ -232,3 +240,79 @@ export const deletePlaylist = asyncHandler(async (req, res) => {
         )
     )
 })
+
+
+// RE-ORDER PLAYLIST
+
+export const reorderPlaylist = asyncHandler(async (req, res) => {
+    const { playlistId } = req.params;
+    const { orderedVideoIds } = req.body; // array of videoIds
+
+    const playlist = await Playlist.findById(playlistId);
+
+    if (!playlist) throw new ApiError(404, "Playlist not found");
+
+    if (playlist.owner.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "Unauthorized");
+    }
+
+    const newVideos = orderedVideoIds.map((id) => {
+        const existing = playlist.videos.find(
+            (v) => v.video.toString() === id
+        );
+
+        if (!existing) {
+            throw new ApiError(400, "Invalid video in reorder list");
+        }
+
+        return existing;
+    });
+
+    playlist.videos = newVideos;
+
+    await playlist.save();
+
+    return res.status(200).json(
+        new ApiResponse(200, playlist, "Playlist reordered")
+    );
+});
+
+
+// WATCH LATER
+
+export const toggleWatchLater = asyncHandler(async (req, res) => {
+    const { videoId } = req.params;
+
+    let playlist = await Playlist.findOne({
+        owner: req.user._id,
+        isWatchLater: true
+    });
+
+    // create if not exists
+    if (!playlist) {
+        playlist = await Playlist.create({
+            name: "Watch Later",
+            isWatchLater: true,
+            privacy: "private",
+            owner: req.user._id
+        });
+    }
+
+    const exists = playlist.videos.some(
+        (v) => v.video.toString() === videoId
+    );
+
+    if (exists) {
+        playlist.videos = playlist.videos.filter(
+            (v) => v.video.toString() !== videoId
+        );
+    } else {
+        playlist.videos.push({ video: videoId });
+    }
+
+    await playlist.save();
+
+    return res.status(200).json(
+        new ApiResponse(200, playlist, "Watch later updated")
+    );
+});
