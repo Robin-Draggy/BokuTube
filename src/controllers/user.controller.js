@@ -453,139 +453,48 @@ export const getUserChannelProfile = asyncHandler(async (req, res) => {
     );
 });
 
-export const getWatchHistory = asyncHandler(async (req, res) => {
-  const user = await User.aggregate([
-    {
-      $match: {
-        _id: new mongoose.Types.ObjectId(req.user?._id),
-      },
-    },
-    {
-      $lookup: {
-        // this videos is Video from model in db it is saved as videos
-        from: "videos",
-        localField: "watchHistory",
-        foreignField: "_id",
-        as: "watchHistory",
-        pipeline: [
-          {
-            $lookup: {
-              from: "users",
-              localField: "owner",
-              foreignField: "_id",
-              as: "owner",
-              pipeline: [
-                {
-                  $project: {
-                    fullname: 1,
-                    username: 1,
-                    avatar: 1
-                  },
-                },
-              ],
-            },
-          },
-          {
-            $addFields: {
-                owner: {
-                    $first: "$owner"
-                }
-            }
-          }
-        ],
-      },
-    },
-  ]);
 
-  if(!user.length){
-    throw new ApiError(400, "Watch history is not found!")
-  }
-  return res
-  .status(200)
-  .json(
-    new ApiResponse(
-        200,
-        user[0].watchHistory,
-        "Watch History fetched successfully!"
-    )
-  )
-});
+export const addToWatchHistory = asyncHandler(async (req, res) => {
+    const { videoId } = req.params;
 
-// THIS IS MORE OPTIMIZED WAY TO UPDATE COVER IMAGE
-/*
-export const updateCoverImage = asyncHandler(async (req, res) => {
-    // 1. Check if user exists
-    if (!req.user?._id) {
-        throw new ApiError(401, "Unauthorized: User not found");
+    if (!isValidObjectId(videoId)) {
+        throw new ApiError(400, "Invalid video ID");
     }
 
-    // 2. Check if file exists
-    if (!req.file || !req.file.path) {
-        throw new ApiError(400, "No cover image file provided");
+    const video = await Video.findById(videoId);
+
+    if (!video) {
+        throw new ApiError(404, "Video not found");
     }
 
-    const coverImageLocalPath = req.file.path;
+    const user = await User.findById(req.user._id);
 
-    // 3. Validate file type and size (cover images can be larger)
-    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
-    const maxFileSize = 10 * 1024 * 1024; // 10MB for cover images
-    
-    if (!allowedMimeTypes.includes(req.file.mimetype)) {
-        fs.unlinkSync(coverImageLocalPath);
-        throw new ApiError(400, "Invalid file type. Only JPEG, PNG, JPG, and WEBP are allowed");
-    }
-    
-    if (req.file.size > maxFileSize) {
-        fs.unlinkSync(coverImageLocalPath);
-        throw new ApiError(400, "File too large. Maximum size is 10MB");
-    }
+    // remove if already exists (avoid duplicates)
+    user.watchHistory = user.watchHistory.filter(
+        (item) => item.video.toString() !== videoId
+    );
 
-    // 4. Get current user
-    const currentUser = await User.findById(req.user._id);
-    if (!currentUser) {
-        fs.unlinkSync(coverImageLocalPath);
-        throw new ApiError(404, "User not found");
-    }
-
-    // 5. Upload to Cloudinary with cover image specific options
-    const coverImage = await uploadOnCloudinary(coverImageLocalPath, {
-        folder: "cover-images",
-        transformation: [
-            { width: 1920, height: 1080, crop: "fill" }, // 16:9 aspect ratio
-            { quality: "auto" },
-            { fetch_format: "auto" }
-        ]
+    // push to top (latest watched first)
+    user.watchHistory.unshift({
+        video: videoId,
+        watchedAt: new Date()
     });
 
-    if (!coverImage || !coverImage.url) {
-        fs.unlinkSync(coverImageLocalPath);
-        throw new ApiError(500, "Error while uploading cover image to Cloudinary");
-    }
+    // optional limit (keep last 100)
+    user.watchHistory = user.watchHistory.slice(0, 100);
 
-    // 6. Delete old cover image from Cloudinary (optional but saves costs)
-    if (currentUser.coverImage && currentUser.coverImage.includes("cloudinary")) {
-        const publicId = currentUser.coverImage.split('/').pop().split('.')[0];
-        await cloudinary.uploader.destroy(`cover-images/${publicId}`);
-    }
+    await user.save();
 
-    // 7. Update user with new cover image
-    const user = await User.findByIdAndUpdate(
-        req.user._id,
-        {
-            $set: {
-                coverImage: coverImage.url,
-                coverImagePublicId: coverImage.public_id
-            }
-        },
-        { new: true, runValidators: true }
-    ).select("-password -refreshToken");
-
-    // 8. Clean up local file
-    fs.unlinkSync(coverImageLocalPath);
-
-    // 9. Return response
     return res.status(200).json(
-        new ApiResponse(200, user, "Cover image updated successfully")
+        new ApiResponse(200, user.watchHistory, "Watch history updated")
     );
 });
-*/
+
+export const getWatchHistory = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id)
+        .populate("watchHistory.video", "title thumbnail duration views");
+
+    return res.status(200).json(
+        new ApiResponse(200, user.watchHistory, "Watch history fetched")
+    );
+});

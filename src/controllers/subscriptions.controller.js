@@ -172,3 +172,70 @@ export const getSubscriberCount = asyncHandler(async (req, res) => {
         )
     )
 })
+
+// SUBSCRIBED FEED
+
+export const getSubscribedFeed = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+
+    // 1. get subscribed channels
+    const subscriptions = await Subscription.find({
+        subscriber: userId
+    }).select("channel");
+
+    const channelIds = subscriptions.map(sub => sub.channel);
+
+    // 2. fetch videos
+    const videos = await Video.aggregate([
+        {
+            $match: {
+                owner: { $in: channelIds },
+                isPublished: true
+            }
+        },
+        {
+            $addFields: {
+                score: {
+                    $add: [
+                        { $multiply: ["$views", 0.7] },
+                        {
+                            $divide: [
+                                1,
+                                {
+                                    $add: [
+                                        {
+                                            $divide: [
+                                                { $subtract: [new Date(), "$createdAt"] },
+                                                1000 * 60 * 60 // hours
+                                            ]
+                                        },
+                                        1
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        { $sort: { score: -1 } },
+        { $limit: 50 },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [
+                    { $project: { username: 1, avatar: 1 } }
+                ]
+            }
+        },
+        { $unwind: "$owner" }
+    ]);
+
+    return res.status(200).json(
+        new ApiResponse(200, videos, "Subscribed feed fetched")
+    );
+});
+

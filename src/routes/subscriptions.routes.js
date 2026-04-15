@@ -1,11 +1,13 @@
 import { Router } from "express";
 import {jwtVerify} from "../middlewares/auth.middleware.js"
-import { getChannelSubscribers, getSubscribedChannels, getSubscriberCount, toggleSubscription } from "../controllers/subscriptions.controller";
+import { getChannelSubscribers, getSubscribedChannels, getSubscribedFeed, getSubscriberCount, toggleSubscription } from "../controllers/subscriptions.controller";
 
 
 export const router = Router();
 
-Router.route("/toggle/:channelId").post(jwtVerify, toggleSubscription)
-Router.route("/channel/:channelId").get(getChannelSubscribers)
-Router.route("/:userId").get(getSubscribedChannels)
-Router.route("/channel/:channelId/count").get(getSubscriberCount)
+router.route("/toggle/:channelId").post(jwtVerify, toggleSubscription)
+router.route("/channel/:channelId").get(getChannelSubscribers)
+router.route("/:userId").get(getSubscribedChannels)
+router.route("/channel/:channelId/count").get(getSubscriberCount)
+router.route("/subscribed-feed").get(getSubscribedFeed)
+
