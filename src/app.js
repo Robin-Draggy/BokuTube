@@ -18,9 +18,15 @@ app.use(cookieParser())
 
 // Router import 
 import { router as userRoutes } from './routes/user.routes.js'
+import { router as VideoRoutes } from './routes/video.routes.js'
+import { router as SubscriptionRoutes } from './routes/subscriptions.routes.js'
+import { router as PlaylistRoutes } from './routes/playlist.routes.js'
 
 // Router declaration
 app.use("/api/v1/users", userRoutes)
-// http://localhost:8000/api/v1/users/register
+app.use("/api/v1/videos", VideoRoutes)
+app.use("api/v1/subscription", SubscriptionRoutes)
+app.use("api/v1/playlist", PlaylistRoutes)
+
 
 export default app;
