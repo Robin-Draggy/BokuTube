@@ -22,6 +22,7 @@ import { router as VideoRoutes } from './routes/video.routes.js'
 import { router as SubscriptionRoutes } from './routes/subscriptions.routes.js'
 import { router as PlaylistRoutes } from './routes/playlist.routes.js'
 import { router as ContinueRoutes } from './routes/continue_watching.routes.js'
+import { router as NotificationRoutes } from './routes/noification.routes.js'
 
 // Router declaration
 app.use("/api/v1/users", userRoutes)
@@ -29,6 +30,7 @@ app.use("/api/v1/videos", VideoRoutes)
 app.use("api/v1/subscription", SubscriptionRoutes)
 app.use("api/v1/playlist", PlaylistRoutes)
 app.use("api/v1/continue", ContinueRoutes)
+app.use("api/v1/notification", NotificationRoutes)
 
 
 export default app;

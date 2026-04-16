@@ -1,22 +1,26 @@
 import mongoose from "mongoose";
 
-const likesSchema = new mongoose.Schema({
-    comment: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Comment"
+const likeSchema = new mongoose.Schema(
+    {
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true
+        },
+        video: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Video"
+        },
+        comment: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Comment"
+        }
     },
-    video: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Video"
-    },
-    likedBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User"
-    },
-    tweet: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Tweet"
-    }
-},{timestamps: true})
+    { timestamps: true }
+);
 
-export const Like = mongoose.model("Like", likesSchema)
+// prevent duplicate likes
+likeSchema.index({ user: 1, video: 1 }, { unique: true, sparse: true });
+likeSchema.index({ user: 1, comment: 1 }, { unique: true, sparse: true });
+
+export const Like = mongoose.model("Like", likeSchema);

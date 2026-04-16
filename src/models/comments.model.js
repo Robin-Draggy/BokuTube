@@ -1,19 +1,32 @@
-import mongoose, { trusted } from "mongoose";
-import { Video } from "./video.model";
+import mongoose from "mongoose";
 
-const commentsSchema = new mongoose.Schema({
-    content: {
-        type: String,
-        required: true
+const commentSchema = new mongoose.Schema(
+    {
+        content: {
+            type: String,
+            required: true,
+            trim: true
+        },
+        video: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Video",
+            required: true
+        },
+        owner: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true
+        },
+        parent: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Comment",
+            default: null
+        }
     },
-    videos: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Video"
-    },
-    owner: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User"
-    }
-}, {timestamps: true})
+    { timestamps: true }
+);
 
-export const Comment = mongoose.model("Comment", commentsSchema)
+commentSchema.index({ video: 1 });
+commentSchema.index({ parent: 1 });
+
+export const Comment = mongoose.model("Comment", commentSchema);
