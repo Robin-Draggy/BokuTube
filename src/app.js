@@ -27,10 +27,10 @@ import { router as NotificationRoutes } from './routes/noification.routes.js'
 // Router declaration
 app.use("/api/v1/users", userRoutes)
 app.use("/api/v1/videos", VideoRoutes)
-app.use("api/v1/subscription", SubscriptionRoutes)
-app.use("api/v1/playlist", PlaylistRoutes)
-app.use("api/v1/continue", ContinueRoutes)
-app.use("api/v1/notification", NotificationRoutes)
+app.use("/api/v1/subscription", SubscriptionRoutes)
+app.use("/api/v1/playlist", PlaylistRoutes)
+app.use("/api/v1/continue", ContinueRoutes)
+app.use("/api/v1/notification", NotificationRoutes)
 
 
 export default app;

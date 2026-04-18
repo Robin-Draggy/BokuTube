@@ -1,19 +1,36 @@
 import { Router } from "express";
-import { addVideoToPlaylist, createPlaylist, deletePlaylist, getPlaylistById, getRecommendedVideos, getUserPlaylist, removeFromPlaylist, reorderPlaylist, toggleWatchLater, updatePlaylist } from "../controllers/playlist.controller";
-import { jwtVerify } from "../middlewares/auth.middleware";
+import {
+  addVideoToPlaylist,
+  createPlaylist,
+  deletePlaylist,
+  getPlaylistById,
+  getRecommendedVideos,
+  getUserPlaylist,
+  getWatchLater,
+  removeFromPlaylist,
+  reorderPlaylist,
+  toggleWatchLater,
+  updatePlaylist
+} from "../controllers/playlist.controller.js";
+import { jwtVerify } from "../middlewares/auth.middleware.js";
 
 export const router = Router();
 
-router.route("/:userId").get(getUserPlaylist)
-router.route("/:playlistId").get(getPlaylistById)
-router.route("/recommended").get(getRecommendedVideos)
+// static
+router.route("/create").post(jwtVerify, createPlaylist);
+router.route("/recommended").get(getRecommendedVideos);
+router.route("/watch-later").get(jwtVerify, getWatchLater);
+router.route("/watch-later/:videoId").post(jwtVerify, toggleWatchLater);
+router.route("/:playlistId/video/:videoId").post(jwtVerify, addVideoToPlaylist);
 
-router.route("/").post(jwtVerify, createPlaylist)
-router.route("/video/:videoId").post(jwtVerify, addVideoToPlaylist)
-router.route("/watch-later/:videoId").post(jwtVerify, toggleWatchLater)
+// user playlists
+router.route("/user/:userId").get(getUserPlaylist);
 
-router.route("/:playlistId").patch(jwtVerify, updatePlaylist)
-router.route("/:playlistId/reorder").patch(jwtVerify, reorderPlaylist)
+// playlist specific
+router.route("/:playlistId").get(getPlaylistById);
+router.route("/:playlistId").patch(jwtVerify, updatePlaylist);
+router.route("/:playlistId").delete(jwtVerify, deletePlaylist);
 
-router.route("/:playlistId/video/:videoId").delete(jwtVerify, removeFromPlaylist)
-router.route("/:playlistId").delete(jwtVerify, deletePlaylist)
+// actions
+router.route("/:playlistId/reorder").patch(jwtVerify, reorderPlaylist);
+router.route("/:playlistId/video/:videoId").delete(jwtVerify, removeFromPlaylist);

@@ -59,7 +59,7 @@ export const getUserPlaylist = asyncHandler(async (req, res) => {
 
 // GET PLAYLIST BY ID
 
-export const getPlaylistById = asyncHandler(async (req, red) => {
+export const getPlaylistById = asyncHandler(async (req, res) => {
     const { playlistId } = req.params;
 
     if(!isValidObjectId(playlistId)){
@@ -172,7 +172,7 @@ export const removeFromPlaylist = asyncHandler(async (req, res) => {
 
 export const updatePlaylist = asyncHandler(async (req, res) => {
     const { playlistId } = req.params;
-    const { name, description } = req.body;
+    const { name, description } = req.body || {};
 
     if(!isValidObjectId(playlistId)){
         throw new ApiError(400, "Invalid playlist ID")
@@ -277,8 +277,50 @@ export const reorderPlaylist = asyncHandler(async (req, res) => {
     );
 });
 
+// GET WATCH LATER VIDEOS
 
-// WATCH LATER
+export const getWatchLater = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+
+    const playlist = await Playlist.findOne({
+        owner: req.user._id,
+        isWatchLater: true
+    })
+    .populate({
+        path: "videos.video",
+        select: "title thumbnail duration views",
+    });
+
+    if (!playlist) {
+        return res.status(200).json(
+            new ApiResponse(200, [], "No watch later videos")
+        );
+    }
+
+    // pagination
+    const start = (page - 1) * limit;
+    const end = start + parseInt(limit);
+
+    const paginatedVideos = playlist.videos
+        .slice(start, end)
+        .map(v => v.video);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                videos: paginatedVideos,
+                total: playlist.videos.length,
+                page: Number(page),
+                limit: Number(limit)
+            },
+            "Watch later fetched"
+        )
+    );
+});
+
+
+// TOGGLE VIDEO WATCH LATER
 
 export const toggleWatchLater = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
